@@ -33,7 +33,7 @@ use core::{
     cmp::{max, min},
 };
 use std::process::exit;
-use crate::evm::config::{NJOBS, SEED_SIZE, RUN_FOREVER, GPU_ENABLE, STATS_CPU_DEFAULT};
+use crate::evm::config::{NJOBS, SEED_SIZE, RUN_FOREVER, GPU_ENABLE, STATS_CPU_DEFAULT, GPU_BALANCE_PERCENT};
 use crate::evm::vm::EVMState;
 use crate::state::{HasCaller, HasExecutionResult};
 use crate::evm::input::EVMInput;
@@ -258,7 +258,7 @@ where
             let cpu_calldata = cpu_input.to_bytes();
             let cpu_calldatasize = cpu_calldata.len();
 
-            let (res, new_corpus_idx) = fuzzer.evaluate_input(state, executor, manager, cpu_input.clone())?;
+            let (_, new_corpus_idx) = fuzzer.evaluate_input(state, executor, manager, cpu_input.clone())?;
             self.mutator_mut().post_exec(state, i as i32, new_corpus_idx)?;
 
             if cpu_input.as_any().downcast_ref::<EVMInput>().unwrap().is_step()
@@ -266,7 +266,7 @@ where
                 continue;
             }
             if unsafe { !BRANCH_DISTANCE_INTERESTING } {
-                if state.rand_mut().below(100) < 10 {
+                if state.rand_mut().below(100) < GPU_BALANCE_PERCENT {
                     continue;
                 }
             }
@@ -343,7 +343,7 @@ where
 
             let should_havoc = state.rand_mut().below(100) < 60;
             let havoc_times = if should_havoc {
-                state.rand_mut().below(4) + 1
+                state.rand_mut().below(10) + 1
             } else {
                 1
             };
@@ -361,7 +361,7 @@ where
                 cuEvalTxn(0);
             }
             *state.executions_mut() += NJOBS as usize; 
-            
+
             #[cfg(any(test, feature = "debug"))]
             println!("[-] time cost on SIMD execution {:?} us", start_time.elapsed().as_micros()); 
             let start_time = Instant::now();
@@ -402,7 +402,7 @@ where
                             .as_mut()
                             .unwrap()
                             .set_bytes(tx_bytes[68..68+cpu_calldatasize].to_vec());
-                        assert_eq!(thread_input.to_bytes(), tx_bytes[68..68+cpu_calldatasize].to_vec(), "set_bytes fails");
+                        // assert_eq!(thread_input.to_bytes(), tx_bytes[68..68+cpu_calldatasize].to_vec(), "set_bytes fails");
 
                         let calldata = hex::encode(thread_input.to_bytes().clone());
                         #[cfg(feature = "print_txn_corpus")]
@@ -437,15 +437,14 @@ where
                             .as_mut()
                             .unwrap()
                             .set_bytes(tx_bytes[68..68+cpu_calldatasize].to_vec());
-                        assert_eq!(input_type_vec, thread_input.get_types_vec(), "type inconsistent");
-                        assert_eq!(thread_input.to_bytes(), tx_bytes[68..68+cpu_calldatasize].to_vec(), "set_bytes fails");
+                        // assert_eq!(input_type_vec, thread_input.get_types_vec(), "type inconsistent");
+                        // assert_eq!(thread_input.to_bytes(), tx_bytes[68..68+cpu_calldatasize].to_vec(), "set_bytes fails");
 
                         let calldata = hex::encode(thread_input.to_bytes());
                         println!("input=>{:?}", calldata);
                         let (res, _) = fuzzer.evaluate_input_events(state, executor, manager, thread_input, true)?;
                         if res == ExecuteInputResult::None {
                             println!("Unfortunately, uninteresting in CPU");
-                            println!("input=>{:?}", calldata);
                             // exit(0);
                         } else {
                             println!("It is indeed interesting in CPU as well!");

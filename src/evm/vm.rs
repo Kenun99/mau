@@ -43,7 +43,7 @@ use crate::evm::bytecode_analyzer;
 use crate::evm::concolic::concolic_exe_host::ConcolicEVMExecutor;
 use crate::evm::host::{
     ControlLeak, FuzzHost, CMP_MAP, COVERAGE_NOT_CHANGED, GLOBAL_CALL_CONTEXT, JMP_MAP, READ_MAP,
-    RET_OFFSET, RET_SIZE, STATE_CHANGE, WRITE_MAP, BRANCH_DISTANCE,
+    RET_OFFSET, RET_SIZE, STATE_CHANGE, WRITE_MAP, BRANCH_DISTANCE, RECALLSLOT,
 };
 use crate::evm::input::{EVMInputT, EVMInputTy};
 use crate::evm::middlewares::middleware::MiddlewareType;

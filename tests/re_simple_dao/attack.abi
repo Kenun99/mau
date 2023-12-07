@@ -1,0 +1,1 @@
+[{"constant":false,"inputs":[],"name":"supportsToken","outputs":[{"name":"","type":"bytes32"}],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"token","type":"address"}],"name":"call","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"}]

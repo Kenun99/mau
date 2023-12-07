@@ -20,14 +20,14 @@ contract main {
 
     function a(address x) public {
         require(balances > 0);
-        is_success += 1;
+        // is_success += 1;
         Someone(x).something();
         balances = 0;
     }
 
-    function b() public {
-        if (is_success == 10) {
-            bug();
-        }
-    }
+    // function b() public {
+    //     if (is_success == 10) {
+    //         bug();
+    //     }
+    // }
 }

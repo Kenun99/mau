@@ -45,7 +45,7 @@ use nix::sys::stat;
 use revm_primitives::bitvec::macros::internal::funty::{Fundamental, Numeric};
 use serde_traitobject::Any;
 
-use crate::evm::host::{JMP_MAP, BRANCH_DISTANCE_INTERESTING, EXPLORED_INS, EXPLORED_EDGE,};
+use crate::evm::host::{JMP_MAP, BRANCH_DISTANCE_INTERESTING, EXPLORED_INS, EXPLORED_EDGE,BUGTAGS,LASTCALLPC,RECALLSLOT};
 use crate::evm::types::EVMU256;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -576,6 +576,10 @@ where
         // execute the input
         start_timer!(state);
         let exitkind = executor.run_target(self, state, manager, &input)?;
+        unsafe {
+            LASTCALLPC = 0;
+            RECALLSLOT.clear();
+        }
         mark_feature_time!(state, PerfFeature::TargetExecution);
         *state.executions_mut() += 1;
 
@@ -964,6 +968,22 @@ where
             ExecuteInputResult::Solution => {
                 unsafe {
                     println!("Oracle: {}", ORACLE_OUTPUT);
+                    if BUGTAGS[0] {
+                        println!("Oracle: IntegerBug");
+                    }
+                    if BUGTAGS[1] {
+                        println!("Oracle: Reentrancy");
+                    }
+                    if BUGTAGS[2] {
+                        println!("Oracle: Mishandled Exception");
+                    }
+                    if BUGTAGS[3] {
+                        println!("Oracle: Block State Dependency");
+                    }
+                    BUGTAGS[0] = false;
+                    BUGTAGS[1] = false;
+                    BUGTAGS[2] = false;
+                    BUGTAGS[3] = false;
                 }
                 println!(
                     "Found a solution! trace: {}",

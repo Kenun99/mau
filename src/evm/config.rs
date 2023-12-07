@@ -64,7 +64,7 @@ pub struct Config<VS, Addr, Code, By, Loc, SlotTy, Out, I, S> {
 /* (ALIGN_UP(CALLDATA_SIZE, 8))  in 64 bits*/
 pub const SEED_SIZE: usize = 2048;
 
-pub const NJOBS: u32 = 1024;//8192;
+pub const NJOBS: u32 =  1024;//8192;
 
 pub static mut RUN_FOREVER: bool = false;
 
@@ -72,4 +72,6 @@ pub static mut GPU_ENABLE: bool = false;
 
 pub static mut DUMP_CORPUS: bool = false;
 
-pub const STATS_CPU_DEFAULT: u64 = 300;
+pub const STATS_CPU_DEFAULT: u64 = 300; // 5min
+
+pub const GPU_BALANCE_PERCENT: u64 = 10; 

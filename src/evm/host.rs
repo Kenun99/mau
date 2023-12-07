@@ -43,7 +43,10 @@ use crate::state::{HasCaller, HasCurrentInputIdx, HasHashToAddress, HasItyState}
 
 use super::concolic::concolic_exe_host::ConcolicEVMExecutor;
 use ahash::AHashMap;
- 
+use lazy_static::lazy_static;
+
+pub static mut BUGTAGS: [bool; 32] = [false; 32];
+
 pub static mut EXPLORED_INS: usize = 0;
 pub static mut EXPLORED_EDGE: usize = 0;
 
@@ -52,6 +55,10 @@ pub static mut JMP_MAP: [u8; MAP_SIZE] = [0; MAP_SIZE];
 // dataflow
 pub static mut READ_MAP: [bool; MAP_SIZE] = [false; MAP_SIZE];
 pub static mut WRITE_MAP: [u8; MAP_SIZE] = [0; MAP_SIZE];
+
+
+pub static mut RECALLSLOT: Vec<(usize, u32)> = Vec::new();
+pub static mut LASTCALLPC: usize = 0;
 
 // cmp
 pub static mut CMP_MAP: [EVMU256; MAP_SIZE] = [EVMU256::MAX; MAP_SIZE];
@@ -447,6 +454,55 @@ where
             }  
 
             match *interp.instruction_pointer {
+                0x01 => { // ADD
+                    #[cfg(feature = "oracle_ib")]
+                    {
+                        let a = fast_peek!(0);
+                        let b = fast_peek!(1);
+                        let c = a + b;
+                        // println!("{:?} {:?} {:?}", a, b, c);
+                        if c < a || c < b {
+                            self.bug_hit = true;
+                            BUGTAGS[0] = true;
+                        }
+                    }
+                }
+                0x02 => { // MUL
+                    #[cfg(feature = "oracle_ib")]
+                    {
+                        let a = fast_peek!(0);
+                        let b = fast_peek!(1);
+                        if !is_zero(a) {
+                            let c = a * b;
+                            if c / a != b {
+                                self.bug_hit = true;
+                                BUGTAGS[0] = true;
+                            }
+                        }
+                    }
+                }
+                0x03 => { // SUB
+                    #[cfg(feature = "oracle_ib")]
+                    {
+                        let a = fast_peek!(0);
+                        let b = fast_peek!(1);
+                        if a < b {
+                            self.bug_hit = true;
+                            BUGTAGS[0] = true;
+                        }
+                    }
+                }
+                0x04 => { // DIV
+                    #[cfg(feature = "oracle_ib")]
+                    {
+                        let a = fast_peek!(0);
+                        let b = fast_peek!(1);
+                        if is_zero(b) {
+                            self.bug_hit = true;
+                            BUGTAGS[0] = true;
+                        }
+                    }
+                }                
                 // 0xfd => {
                 //     println!("fd {} @ {:?}", interp.program_counter(), interp.contract.address);
                 // }
@@ -472,6 +528,15 @@ where
                     }
                     if JMP_MAP[idx] < 255 {
                         JMP_MAP[idx] += 1;
+                    }
+
+                    #[cfg(feature = "oracle_me")] {
+                        if LASTCALLPC != 0 && interp.program_counter() > LASTCALLPC && interp.program_counter() - LASTCALLPC < 10{
+                            // println!("LASTCALLPC = {:?}; interp.program_counter() = {:?}", LASTCALLPC, interp.program_counter());
+                            self.bug_hit = true;
+                            BUGTAGS[2] = true;
+                            LASTCALLPC = 0;
+                        }
                     }
                 }
                 0x57 => {
@@ -508,6 +573,15 @@ where
                         let idx = (interp.program_counter()) % MAP_SIZE;
                         CMP_MAP[idx] = br;
                     }
+
+                    #[cfg(feature = "oracle_me")] {
+                        if LASTCALLPC != 0 && interp.program_counter() > LASTCALLPC && interp.program_counter() - LASTCALLPC > 20 {
+                            // println!("LASTCALLPC = {:?}; interp.program_counter() = {:?}", LASTCALLPC, interp.program_counter());
+                            self.bug_hit = true;
+                            BUGTAGS[2] = true;
+                            LASTCALLPC = 0;
+                        }
+                    }
                 }
 
                 #[cfg(any(feature = "dataflow", feature = "cmp"))]
@@ -542,13 +616,41 @@ where
                     JMP_MAP[idx] = if value_changed { 1 } else { 0 };
 
                     STATE_CHANGE |= value_changed;
+                    #[cfg(feature = "oracle_re")] 
+                    {
+                        let mut key = fast_peek!(0);
+                        let hash_key = process_rw_key!(key);
+                        // println!("self.pc_to_call_hash.len() = {:?}", self.pc_to_call_hash.len());
+                        if let Some(index) = RECALLSLOT.iter().position(|x| x.0 == hash_key) {
+                            if RECALLSLOT[index].1 == 2 {
+                                self.bug_hit = true;
+                                BUGTAGS[1] = true;
+                            }  else {
+                                RECALLSLOT[index].1 = 0;
+                            }
+                        }
+                        // if self.pc_to_call_hash.len() > 0 && READ_MAP[process_rw_key!(key)] {
+                        //     self.bug_hit = true;
+                        //     BUGTAGS[1] = true;
+                        // }
+                    }
                 }
 
                 #[cfg(feature = "dataflow")]
                 0x54 => {
                     // SLOAD
                     let mut key = fast_peek!(0);
-                    READ_MAP[process_rw_key!(key)] = true;
+                    let hash_key = process_rw_key!(key);
+                    READ_MAP[hash_key] = true;
+
+                    if let Some(item) = RECALLSLOT.iter_mut().find(|x| x.0 == hash_key) {
+                        if item.1 == 0 {
+                            item.1 = 1;
+                        }
+                    } else {
+                        // first time load
+                        RECALLSLOT.push((hash_key, 1));
+                    }
                 }
 
                 // todo(shou): support signed checking
@@ -630,12 +732,40 @@ where
                         0xf4 | 0xfa => 5,
                         _ => unreachable!(),
                     };
+                    // let gas = as_u64(fast_peek!(0)) as usize;
                     unsafe {
                         RET_OFFSET = as_u64(fast_peek!(offset_of_ret_size - 1)) as usize;
                         // println!("RET_OFFSET: {}", RET_OFFSET);
                         RET_SIZE = as_u64(fast_peek!(offset_of_ret_size)) as usize;
                     }
                     self._pc = interp.program_counter();
+                    #[cfg(feature = "oracle_re")] 
+                    {   
+                        // load before the call
+                        for item in RECALLSLOT.iter_mut() {
+                            if item.1 == 1 {
+                                item.1 = 2;
+                            }
+                        }
+                    }
+
+                    #[cfg(feature = "oracle_me")] {
+                        // if gas == 2300 || gas == 0 {
+                        //     self.bug_hit = true;
+                        //     BUGTAGS[3] = true;
+                        // }
+                        LASTCALLPC = interp.program_counter();
+                        // if interp.program_counter() - LASTCALLPC > 10 {
+                        //     self.bug_hit = true;
+                        //     BUGTAGS[3] = true;
+                        // }
+                    }
+                }
+                0x43 | 42 => { // NUMBER, TIMESTAMP
+                    #[cfg(feature = "oracle_bd")] {
+                        self.bug_hit = true;
+                        BUGTAGS[3] = true;
+                    }
                 }
                 _ => {}
             }
