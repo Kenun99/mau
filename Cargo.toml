@@ -12,7 +12,8 @@ name = "ityfuzz"
 harness = false
 
 [features]
-default = ["oracle_re", "oracle_ib", "oracle_me", "cmp", "dataflow", "evm", "print_txn_corpus", "full_trace", "cuda", "print_cuda_corpus", "cuda_snapshot_storage", "deployer_is_attacker"] #deployer_is_attacker , "print_logs"
+default = ["oracle_re", "oracle_ib", "oracle_me", "cmp", "dataflow", "evm", "full_trace", "cuda", "cuda_snapshot_storage", "deployer_is_attacker"] #deployer_is_attacker , "print_logs"
+#default = ["oracle_re", "oracle_ib", "oracle_me", "cmp", "dataflow", "evm", "print_txn_corpus", "full_trace", "cuda", "print_cuda_corpus", "cuda_snapshot_storage", "deployer_is_attacker"] #deployer_is_attacker , "print_logs"
 #default = ["cmp", "dataflow", "evm", "print_txn_corpus", "full_trace", "cuda", "print_cuda_corpus", "cuda_snapshot_storage", "deployer_is_attacker"] #deployer_is_attacker , "print_logs"
 
 debug = []

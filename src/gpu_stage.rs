@@ -361,6 +361,7 @@ where
                 cuEvalTxn(0);
             }
             *state.executions_mut() += NJOBS as usize; 
+            println!("[-] GPU execution throughput {:?} execs/s", NJOBS as u128 * 1000000 / start_time.elapsed().as_micros()); 
 
             #[cfg(any(test, feature = "debug"))]
             println!("[-] time cost on SIMD execution {:?} us", start_time.elapsed().as_micros()); 
@@ -396,7 +397,7 @@ where
                         // println!("now CPU caller=> {:?}", thread_input.get_caller());
 
                         thread_input.set_txn_value(EVMU256::try_from_be_slice(&tx_bytes[32..64]).unwrap());
-                        println!("current CPU data=> \ntypes:{:?}\ndata:{:?}", thread_input.get_types_vec(), hex::encode(thread_input.to_bytes()));
+                        // println!("current CPU data=> \ntypes:{:?}\ndata:{:?}", thread_input.get_types_vec(), hex::encode(thread_input.to_bytes()));
                         thread_input
                             .get_data_abi_mut()
                             .as_mut()
@@ -405,21 +406,21 @@ where
                         // assert_eq!(thread_input.to_bytes(), tx_bytes[68..68+cpu_calldatasize].to_vec(), "set_bytes fails");
 
                         let calldata = hex::encode(thread_input.to_bytes().clone());
-                        #[cfg(feature = "print_txn_corpus")]
-                        {
-                            println!("[bug] bug() hit at {:?}. Evaluating in CPU again:", thread_id);
-                        }
+                        // #[cfg(feature = "print_txn_corpus")]
+                        // {
+                        //     println!("[bug] bug() hit at {:?}. Evaluating in CPU again:", thread_id);
+                        // }
                         let (res, _) = fuzzer.evaluate_input_events(state, executor, manager, thread_input, true)?;
                         #[cfg(any(test, feature = "debug"))] {
                             println!("cpu vector => {:?}", hex::encode(input_vector[thread_id as usize].to_bytes()));
                         }
 
-                        #[cfg(feature = "print_txn_corpus")]
-                        { 
-                            println!("Found a {:?} in GPU at thread#{:?}", res, thread_id);
-                            println!("data changed from (CPU){:?}\n===> (GPU){:?}", hex::encode(cpu_input.to_bytes().clone()), calldata);
-                            // exit(0);
-                        }
+                        // #[cfg(feature = "print_txn_corpus")]
+                        // { 
+                        //     println!("Found a {:?} in GPU at thread#{:?}", res, thread_id);
+                        //     println!("data changed from (CPU){:?}\n===> (GPU){:?}", hex::encode(cpu_input.to_bytes().clone()), calldata);
+                        //     // exit(0);
+                        // }
                     }
                     ExecuteCudaInputResult::EXECINTERESTING => {
                         println!("Found an interesting from GPU #{:?}", thread_id);
@@ -431,7 +432,7 @@ where
                         thread_input.set_caller(EVMAddress::from_slice(&new_caller));
                         // println!("now CPU caller=> {:?}", thread_input.get_caller());
                         thread_input.set_txn_value(EVMU256::try_from_be_slice(&tx_bytes[32..64]).unwrap());
-                        println!("current CPU data=> \ntypes:{:?}\ndata:{:?}", thread_input.get_types_vec(), hex::encode(thread_input.to_bytes()));
+                        // println!("current CPU data=> \ntypes:{:?}\ndata:{:?}", thread_input.get_types_vec(), hex::encode(thread_input.to_bytes()));
                         thread_input
                             .get_data_abi_mut()
                             .as_mut()
@@ -562,8 +563,6 @@ where
         //     // GPU mode
         //     self.perform_multiple_mutational(fuzzer, executor, state, manager, corpus_idx)
         // };
-
-        
 
         #[cfg(feature = "introspection")]
         state.introspection_monitor_mut().finish_stage();

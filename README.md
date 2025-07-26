@@ -22,6 +22,23 @@ i.e., `Oracle: IntegerBug`
 
 ## Bug Oracles
 see `src/evm/host.rs`
+Note that you can change the kernel function `addBugSet` in `sema/src/runtime/rt.o.c` to diable kernel printing for a better performance.
+
+## How to set GPU threads.
+### Setup the transformer
+edit `config.h` and set `BLOCK_X` and ` GRID_X`.
+For example, we can set  `BLOCK_X` to 256 and `GRID_X` to 32 to enable 8196 threads
+Once you change `config.h`, please rebuild the transformer.
+
+### Setup the Fuzzer
+edit `sec/evm/config.rs` and set `pub const NJOBS: u32 =  8192;`
+Rebuild the target.
+
+## Setup the schedule.
+Implement your fuzzing code at gpu_stage.rs using LibAFL's interfaces.
+Currently, we run CPU-fuzzing for the first five minutes. See the definition of `STATS_CPU_DEFAULT` at `src/evm/config.rs`
+
+
 
 # ItyFuzz 🍦
 Fast hybrid fuzzer for EVM & MoveVM (WIP) smart contracts.  
