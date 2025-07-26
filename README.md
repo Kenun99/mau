@@ -1,3 +1,28 @@
+# ItyFuzz-Mau
+
+## How to build
+
+### Build your Runner from Mau
+1. Download the source code from https://github.com/Kenun99/Mau-Artifact
+2. build
+```
+mkdir build && cd build
+cmake -DCMAKE_BUILD_TYPE=Releas -DCUDAPATH=/usr/local/cuda-11.4/ ..
+cmake --build . --target all
+```
+
+### Build the Fuzzer
+1. put your Mau's target to `build.rs`
+2. build by `cd cli && cargo build --release`
+
+## Example
+`bash run.sh  ./tests/2018-10299/ BecToken --run-forever`
+Check the tirggered bug orcales from the stdout.
+i.e., `Oracle: IntegerBug`
+
+## Bug Oracles
+see `src/evm/host.rs`
+
 # ItyFuzz 🍦
 Fast hybrid fuzzer for EVM & MoveVM (WIP) smart contracts.  
 
